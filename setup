@@ -18,8 +18,6 @@ RWETCFS="/etc/qm"
 RWVARFS="/var/qm"
 AGENT_HOSTNAME="$(hostname)"
 AGENTCONF="/etc/bluechi/agent.conf.d/agent.conf"
-QM_CONTAINER_IDS=1000000000:1500000000
-CONTAINER_IDS=2500000000:1500000000
 PACKAGES_TO_INSTALL="selinux-policy-targeted podman systemd procps-ng iptables-nft jq hostname"
 
 # RHEL kernel uses iptables-nft, not iptables-legacy, the tool should
@@ -99,11 +97,6 @@ usage()
    echo "  $ sudo ./setup --installdir=/usr/share/qm --rootfs=/usr/lib/qm/rootfs"
 }
 
-replaceIDs() {
-    touch "$1"
-    grep -q "^$2:" "$1" || echo "$2":"$3" >> "$1"
-}
-
 bluechiSetup() {
     ROOTFS=$1
     RWETCFS=$2
@@ -131,8 +124,10 @@ setupRW() {
     ROOTFS=$1
     RWETCFS=$2
     RWVARFS=$3
+
     mkdir -Z -p "${ROOTFS}/etc" "${ROOTFS}/var"
     mkdir -Z -p "${RWETCFS}" "${RWVARFS}"
+
     mount --bind "${RWETCFS}" "${ROOTFS}/etc"
     mount --bind "${RWVARFS}" "${ROOTFS}/var"
 }
@@ -263,8 +258,6 @@ EOF
     cp "${INSTALLDIR}/containers.conf" "${ROOTFS}/etc/containers/"
     cp "${INSTALLDIR}/contexts" "${ROOTFS}/usr/share/containers/selinux/"
     cp "${INSTALLDIR}/file_contexts" "${ROOTFS}/etc/selinux/targeted/contexts/files/file_contexts"
-    replaceIDs "${ROOTFS}/etc/subuid" containers ${QM_CONTAINER_IDS}
-    replaceIDs "${ROOTFS}/etc/subgid" containers ${QM_CONTAINER_IDS}
     bluechiSetup "${ROOTFS}" "${RWETCFS}" "${RWVARFS}"
 
     if [ "$SYSTEMCTL_SKIP" == "N" ]; then
@@ -376,10 +369,6 @@ case "$1" in
     fi
 
 	install "${ROOTFS}" "${RWETCFS}" "${RWVARFS}"
-	replaceIDs /etc/subuid qmcontainers ${QM_CONTAINER_IDS}
-	replaceIDs /etc/subgid qmcontainers ${QM_CONTAINER_IDS}
-	replaceIDs /etc/subuid containers   ${CONTAINER_IDS}
-	replaceIDs /etc/subgid containers   ${CONTAINER_IDS}
 
     if [ "$SYSTEMCTL_SKIP" == "N" ]; then
 	    systemctl daemon-reload
