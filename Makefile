@@ -103,6 +103,7 @@ install: man all ##             - Install QM files (including selinux)
 	install -d -m 755 ${DESTDIR}${DATADIR}/qm
 	install -D -m 644 qm_contexts  ${DESTDIR}${DATADIR}/qm/contexts
 	install -D -m 755 setup ${DESTDIR}${DATADIR}/qm/setup
+	install -D -m 755 userns ${DESTDIR}${DATADIR}/qm/userns
 	install -D -m 755 tools/comment-tz-local ${DESTDIR}${DATADIR}/qm/comment-tz-local
 	install -D -m 755 tools/qm-rootfs ${DESTDIR}${DATADIR}/qm/qm-rootfs
 	install -D -m 755 tools/qm-storage-settings ${DESTDIR}${DATADIR}/qm/qm-storage-settings

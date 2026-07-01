@@ -1,0 +1,227 @@
+#!/bin/bash
+
+USAGE_HEADER=$(cat <<EOF
+Generate QM sysusers configuration for the root partition based on users and groups
+inside of QM with an given offset. This maps processes run by users inside of QM to
+the respective qm_<user> on the root partition.
+It also generates the necessary user namespace entries in /etc/subuid and /etc/subgid
+as well as the drop-in file for QM to use the user namespace.
+
+EOF
+)
+
+# Default values for user namespace settings
+ROOT_DIR="/etc"
+ID_OFFSET=1000000000
+ID_RANGE=1500000000
+SYSUSERS_OUTPUT_DIR="/etc/sysusers.d"
+SYSUSERS_CONF_FILE="qm-sysusers.conf"
+QM_DROPIN_DIR="/etc/containers/systemd/qm.container.d"
+QM_DROPIN_FILE="qm-user-namespaces.conf"
+
+
+function generate_sysusers_conf() {
+    local root_dir="${1}"
+    local outfile="${2}"
+    local id_offset=$3
+
+    echo "# Type        Name        ID      GECOS       Home directory      Shell" > "${outfile}"
+    # shellcheck disable=SC2034
+    while IFS=: read -r username password uid gid gecos home shell; do
+        new_uid=$((id_offset+uid))
+        new_gid=$((id_offset+gid))
+        echo "u     qm_${username}      ${new_uid}:${new_gid}       \"QM - ${gecos}\""
+    done < "${root_dir}/passwd" >> "${outfile}"
+
+    # shellcheck disable=SC2034
+    while IFS=: read -r group password gid members; do
+        new_gid=$((id_offset+gid))
+        echo "g     qm_${group}     ${new_gid}"
+    done < "${root_dir}/group" >> "${outfile}"
+}
+
+function generate_qm_dropin() {
+    local file_path=$1
+    local user=$2
+
+    cat > "${file_path}" <<EOF
+# Run the QM container in the user namespace qm using the map with name in the /etc/subgid file.
+# It also maps to the QM user created via systemd sysusers.
+SubUIDMap=${user}
+SubGIDMap=${user}
+EOF
+}
+
+function add_subid_entries() {
+    local id_range_start=$1
+    local id_range=$2
+    local id_range_end=$((id_range_start+id_range))
+    local user=$3
+
+    if ! grep -q "^${user}:" /etc/subuid 2>/dev/null; then
+        usermod --add-subuids "${id_range_start}-${id_range_end}" "${user}"
+    fi
+    if ! grep -q "^{user}:" /etc/subgid 2>/dev/null; then
+        usermod --add-subgids "${id_range_start}-${id_range_end}" "${user}"
+    fi
+}
+
+function enable() {
+    # shellcheck disable=SC2155
+    local SETUP_USAGE=$(cat <<EOF
+${USAGE_HEADER}
+
+Usage:
+    $(basename "${0}") enable [options]
+
+Available options:
+    --root-dir      The root directory where passwd and group are located. Default: '${ROOT_DIR}'.
+    --sysusers-dir  Directory the '${SYSUSERS_CONF_FILE}' is being placed. Default: '${SYSUSERS_OUTPUT_DIR}'.
+    --id-offset     UID/GID offset to be applied. Default: '${ID_OFFSET}'.
+    --id-range      Number of UIDs/GIDs reserved for the QM user namespace. Default: '${ID_RANGE}'.
+
+Flags:
+    -h, --help  Print help
+EOF
+)
+
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --root-dir)
+                ROOT_DIR="${2}"
+                shift 2
+                ;;
+            --sysusers-dir)
+                SYSUSERS_OUTPUT_DIR="${2}"
+                shift 2
+                ;;
+            --id-offset)
+                ID_OFFSET="${2}"
+                shift 2
+                ;;
+            --id-range)
+                ID_RANGE="${2}"
+                shift 2
+                ;;
+            -h|--help)
+                echo "$SETUP_USAGE"
+                exit 0
+                ;;
+            --*)
+                echo "Unknown option $1"
+                echo
+                echo "$SETUP_USAGE"
+                exit 1
+                ;;
+            *)
+                echo "Unknown command: $1"
+                echo
+                echo "$SETUP_USAGE"
+                exit 1
+                ;;
+        esac
+    done
+
+    # Generate sysusers configuration and trigger systemd-sysusers so that
+    # users are created (required by adding subids)
+    local SYSUSERS_CONF_PATH="${SYSUSERS_OUTPUT_DIR}/${SYSUSERS_CONF_FILE}"
+    generate_sysusers_conf "${ROOT_DIR}" "${SYSUSERS_CONF_PATH}" "${ID_OFFSET}"
+    echo "Created '${SYSUSERS_CONF_PATH}'"
+    systemd-sysusers
+
+    # Add subuids/subgids
+    # A root user is always expected, so the corresponding qm user is qm_root
+    add_subid_entries "${ID_OFFSET}" "${ID_RANGE}" "qm_root"
+
+    # Add SubUIDMap= and SubGIDMap= to QM via drop-in
+    local QM_DROPIN_PATH="${QM_DROPIN_DIR}/${QM_DROPIN_FILE}"
+    generate_qm_dropin "${QM_DROPIN_PATH}" "qm_root"
+    echo "Created '${QM_DROPIN_PATH}'"
+}
+
+
+function remove_subid_entries() {
+    local user=$1
+    sed -i "/^${user}:/d" /etc/subuid
+    sed -i "/^${user}:/d" /etc/subgid
+}
+
+
+function disable() {
+    # shellcheck disable=SC2155
+    local SETUP_USAGE=$(cat <<EOF
+${USAGE_HEADER}
+
+Usage:
+    $(basename "${0}") disable [options]
+
+Available options:
+    --sysusers-dir  Directory the '${SYSUSERS_CONF_FILE}' is located. Default: '${SYSUSERS_OUTPUT_DIR}'.
+
+Flags:
+    -h, --help  Print help
+EOF
+)
+
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --sysusers-dir)
+                SYSUSERS_OUTPUT_DIR="${2}"
+                shift 2
+                ;;
+            -h|--help)
+                echo "$SETUP_USAGE"
+                exit 0
+                ;;
+            --*)
+                echo "Unknown option $1"
+                echo
+                echo "$SETUP_USAGE"
+                exit 1
+                ;;
+            *)
+                echo "Unknown command: $1"
+                echo
+                echo "$SETUP_USAGE"
+                exit 1
+                ;;
+        esac
+    done
+
+    remove_subid_entries "qm_root"
+    rm -f "${QM_DROPIN_DIR}/${QM_DROPIN_FILE}"
+    rm -f "${SYSUSERS_OUTPUT_DIR}/${SYSUSERS_CONF_FILE}"
+}
+
+BASIC_USAGE=$(cat <<EOF
+${USAGE_HEADER}
+
+Usage:
+    $(basename "${0}") [enable|disable] [options]
+
+Flags:
+    -h, --help  Print help
+EOF
+)
+case $1 in
+    enable)
+        shift
+        enable "$@"
+        exit 0
+        ;;
+    disable)
+        shift
+        disable "$@"
+        exit 0
+        ;;
+    -h|--help)
+        echo "${BASIC_USAGE}"
+        exit 0
+        ;;
+    *)
+        echo "No or unknown positional argument"
+        echo
+        echo "${BASIC_USAGE}"
+        exit 1
+        ;;
+esac

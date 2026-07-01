@@ -64,12 +64,13 @@ BuildRequires: selinux-policy-devel >= %_selinux_policy_version
 BuildRequires: bluechi-selinux
 BuildRequires: python3-devel
 
+Recommends: selinux-policy-targeted >= %_selinux_policy_version
+
 Requires: parted
 Requires: containers-common
 Requires: selinux-policy >= %_selinux_policy_version
 Requires(post): selinux-policy-base >= %_selinux_policy_version
 Requires(post): selinux-policy-any >= %_selinux_policy_version
-Recommends: selinux-policy-targeted >= %_selinux_policy_version
 Requires(post): policycoreutils
 Requires(post): libselinux-utils
 Requires: podman >= %{podman_epoch}:4.5
@@ -169,6 +170,7 @@ fi
 %{_datadir}/qm/contexts
 %{_datadir}/qm/file_contexts
 %{_datadir}/qm/setup
+%{_datadir}/qm/userns
 %{_datadir}/qm/create-seccomp-rules
 %{_datadir}/qm/qm-rootfs
 %{_datadir}/qm/qm-storage-settings
