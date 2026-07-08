@@ -2,7 +2,9 @@ summary: Test podman ulimits qm are set
 test: /bin/bash ./check_qm_podman_ulimits_are_set.sh
 duration: 10m
 tier: 0
-tag: [kvm,setup]
-#Need to run first for Fedora use case
+tag:
+  - kvm
+  - setup
 order: 40
 framework: shell
+id: 78464d0f-1e8f-4601-8651-5412ce6bb8bf

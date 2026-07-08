@@ -2,6 +2,8 @@ summary: Test libkrun in qm
 test: /bin/bash ./check_libkrun.sh
 duration: 10m
 tier: 0
-tag: [kvm,setup]
+tag:
+  - kvm
+  - setup
 framework: shell
-
+id: b5e2b341-98f5-4936-9d73-6ae114f0e685

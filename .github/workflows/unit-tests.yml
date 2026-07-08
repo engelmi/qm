@@ -1,19 +1,30 @@
-name: Tools Tests
+name: Unit Tests
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - 'tools/**'
-
-  pull_request:
-    branches:
-      - main
-    paths:
-      - 'tools/**'
+  pull_request
 
 jobs:
+
+  lint:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.9'
+
+      - name: Install dependencies
+        run: |
+          pip install tmt
+
+      - name: Check tmt test IDs
+        run: |
+          tmt test id --dry | grep -q "New id" && { echo "Found integration tests with missing ID. Please generate Test-IDs."; exit 1; } || true
+
   qm-unit-tests:
     runs-on: ubuntu-latest
 
@@ -32,7 +43,7 @@ jobs:
 
       - name: Run QM unit tests
         run: |
-          tmt --feeling-safe run -v plan --name unit
+          tmt --feeling-safe run -vvv plan --name unit
 
   qmctl-unit-tests:
     runs-on: ubuntu-latest
