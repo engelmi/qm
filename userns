@@ -61,7 +61,7 @@ function add_subid_entries() {
     if ! grep -q "^${user}:" /etc/subuid 2>/dev/null; then
         usermod --add-subuids "${id_range_start}-${id_range_end}" "${user}"
     fi
-    if ! grep -q "^{user}:" /etc/subgid 2>/dev/null; then
+    if ! grep -q "^${user}:" /etc/subgid 2>/dev/null; then
         usermod --add-subgids "${id_range_start}-${id_range_end}" "${user}"
     fi
 }
@@ -193,7 +193,12 @@ EOF
     rm -f "${SYSUSERS_OUTPUT_DIR}/${SYSUSERS_CONF_FILE}"
 }
 
-BASIC_USAGE=$(cat <<EOF
+
+# Only parse CLI options etc. when invoked directly
+# Do nothing when sourced
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+
+    BASIC_USAGE=$(cat <<EOF
 ${USAGE_HEADER}
 
 Usage:
@@ -203,25 +208,27 @@ Flags:
     -h, --help  Print help
 EOF
 )
-case $1 in
-    enable)
-        shift
-        enable "$@"
-        exit 0
-        ;;
-    disable)
-        shift
-        disable "$@"
-        exit 0
-        ;;
-    -h|--help)
-        echo "${BASIC_USAGE}"
-        exit 0
-        ;;
-    *)
-        echo "No or unknown positional argument"
-        echo
-        echo "${BASIC_USAGE}"
-        exit 1
-        ;;
-esac
+    case $1 in
+        enable)
+            shift
+            enable "$@"
+            exit 0
+            ;;
+        disable)
+            shift
+            disable "$@"
+            exit 0
+            ;;
+        -h|--help)
+            echo "${BASIC_USAGE}"
+            exit 0
+            ;;
+        *)
+            echo "No or unknown positional argument"
+            echo
+            echo "${BASIC_USAGE}"
+            exit 1
+            ;;
+    esac
+
+fi

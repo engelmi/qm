@@ -1,0 +1,15 @@
+summary: Unit tests for QM
+description: Verify that the functionality of QM does not break on a unit level
+
+discover:
+    how: fmf
+    filter: tier:unit
+
+provision:
+    how: local
+
+execute:
+    how: tmt
+
+report:
+    how: junit

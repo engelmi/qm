@@ -14,7 +14,27 @@ on:
       - 'tools/**'
 
 jobs:
-  test:
+  qm-unit-tests:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.9'
+
+      - name: Install dependencies
+        run: |
+          pip install tmt
+
+      - name: Run QM unit tests
+        run: |
+          tmt --feeling-safe run -v plan --name unit
+
+  qmctl-unit-tests:
     runs-on: ubuntu-latest
     container: python:3.11-slim
 
