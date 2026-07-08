@@ -4,6 +4,8 @@ require:
 test: /bin/bash ./check_container_kvm_run_in_qm.sh
 duration: 10m
 tier: 0
-tag: [kvm,setup]
+tag:
+  - kvm
+  - setup
 framework: shell
-
+id: 7552c7aa-5384-4ee3-bee7-33ce09bf1c72
