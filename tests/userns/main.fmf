@@ -1,0 +1,11 @@
+tier: unit
+summary: Unit tests for userns script functions
+description: |
+  Tests individual functions in the userns script including:
+  - generate_sysusers_conf
+  - generate_qm_dropin
+  - add_subid_entries
+  - remove_subid_entries
+  - enable and disable orchestration functions
+test: ./test.sh
+duration: 5m
