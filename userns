@@ -56,6 +56,7 @@ function generate_qm_dropin() {
     local user=$1
 
     cat > "${file_path}" <<EOF
+[Container]
 # Run the QM container in the user namespace qm using the map with name in the /etc/subgid file.
 # It also maps to the QM user created via systemd sysusers.
 SubUIDMap=${user}
